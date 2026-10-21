@@ -1,0 +1,29 @@
+# Sensitive keys & secrets
+.env
+*.env
+local.properties
+*.jks
+*.keystore
+
+# Build & Gradle caches
+.gradle/
+.kotlin/
+build/
+**/build/
+bin/
+out/
+
+# Logs & temp files
+*.log
+ps_out.log
+backend_*.log
+work/
+
+# IDE files
+.idea/
+*.iml
+.DS_Store
+
+# Generated binaries
+*.apk
+*.aab
