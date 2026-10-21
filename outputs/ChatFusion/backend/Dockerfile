@@ -2,14 +2,11 @@
 FROM gradle:8.9-jdk21-alpine AS build
 WORKDIR /app
 
-# Copy project files
+# Copy backend files
 COPY . .
 
-# Ensure gradlew permissions and try local task then fallback root task
-RUN chmod +x gradlew && \
-    ( ./gradlew installDist --no-daemon || \
-      ./gradlew outputs:ChatFusion:backend:installDist --no-daemon || \
-      gradle installDist --no-daemon )
+# Grant execute permissions to gradlew and build distribution
+RUN chmod +x ./gradlew && ./gradlew installDist --no-daemon
 
 # Runtime Stage
 FROM eclipse-temurin:21-jre-alpine

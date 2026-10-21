@@ -5,17 +5,14 @@ WORKDIR /app
 # Copy project files
 COPY . .
 
-# Ensure gradlew permissions and try root task then fallback task
-RUN chmod +x gradlew && \
-    ( ./gradlew outputs:ChatFusion:backend:installDist --no-daemon || \
-      ./gradlew installDist --no-daemon || \
-      gradle installDist --no-daemon )
+# Grant execute permissions to gradlew and build distribution
+RUN chmod +x ./gradlew && ./gradlew outputs:ChatFusion:backend:installDist --no-daemon
 
 # Runtime Stage
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# Copy built distribution from build stage (checking both possible build paths)
+# Copy built distribution from build stage
 COPY --from=build /app/outputs/ChatFusion/backend/build/install/backend /app
 
 ENV PORT=8080
