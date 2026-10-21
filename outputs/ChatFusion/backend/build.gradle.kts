@@ -4,6 +4,11 @@ plugins {
     application
 }
 
+repositories {
+    mavenCentral()
+    google()
+}
+
 group = "com.yogesh.chatfusion"
 version = "1.0.0"
 
