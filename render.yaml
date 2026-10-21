@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: aster-ai-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: MONGODB_DATABASE
+        value: chatfusion
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
