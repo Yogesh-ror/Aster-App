@@ -1,14 +1,16 @@
-FROM eclipse-temurin:21-jdk-alpine AS build
+# Build Stage using official Gradle 8.9 with JDK 21
+FROM gradle:8.9-jdk21-alpine AS build
 WORKDIR /app
 
 # Copy project files
 COPY . .
 
-# Grant execute permissions to gradlew
-RUN chmod +x gradlew
-
-# Build backend distribution package
-RUN ./gradlew outputs:ChatFusion:backend:installDist --no-daemon
+# Ensure gradlew permissions if present, or build directly with system gradle
+RUN if [ -f "./gradlew" ]; then \
+        chmod +x ./gradlew && ./gradlew outputs:ChatFusion:backend:installDist --no-daemon; \
+    else \
+        gradle installDist --no-daemon; \
+    fi
 
 # Runtime Stage
 FROM eclipse-temurin:21-jre-alpine
