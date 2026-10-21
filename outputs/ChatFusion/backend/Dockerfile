@@ -5,12 +5,11 @@ WORKDIR /app
 # Copy project files
 COPY . .
 
-# Ensure gradlew permissions if present, or build directly with system gradle
-RUN if [ -f "./gradlew" ]; then \
-        chmod +x ./gradlew && ./gradlew installDist --no-daemon; \
-    else \
-        gradle installDist --no-daemon; \
-    fi
+# Ensure gradlew permissions and try local task then fallback root task
+RUN chmod +x gradlew && \
+    ( ./gradlew installDist --no-daemon || \
+      ./gradlew outputs:ChatFusion:backend:installDist --no-daemon || \
+      gradle installDist --no-daemon )
 
 # Runtime Stage
 FROM eclipse-temurin:21-jre-alpine
