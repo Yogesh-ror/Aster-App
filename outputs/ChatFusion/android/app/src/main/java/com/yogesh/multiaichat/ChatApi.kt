@@ -49,7 +49,7 @@ data class SendResult(val userMessage: ChatMessage, val assistantMessage: ChatMe
 class ApiException(message: String) : Exception(message)
 
 object ChatApi {
-    private var baseUrl: String = "http://127.0.0.1:8080"
+    private var baseUrl: String = "https://aster-app-jsng.onrender.com"
 
     fun configure(context: Context) {
         @Suppress("DEPRECATION")
@@ -61,7 +61,7 @@ object ChatApi {
             ?.getString("com.yogesh.multiaichat.API_BASE_URL")
             ?.trimEnd('/')
             ?.takeIf(String::isNotBlank)
-            ?: "http://127.0.0.1:8080"
+            ?: "https://aster-app-jsng.onrender.com"
     }
 
     fun register(
@@ -163,6 +163,7 @@ object ChatApi {
     ): Any {
         val candidateUrls = listOf(
             baseUrl,
+            "https://aster-app-jsng.onrender.com",
             "http://192.168.31.101:8080",
             "http://127.0.0.1:8080"
         ).distinct()

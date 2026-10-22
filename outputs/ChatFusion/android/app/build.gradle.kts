@@ -16,7 +16,7 @@ android {
         versionName = "1.1"
 
         val apiBaseUrl = providers.gradleProperty("API_BASE_URL")
-            .orElse("http://127.0.0.1:8080")
+            .orElse("https://aster-app-jsng.onrender.com")
             .get()
             .trimEnd('/')
         manifestPlaceholders["apiBaseUrl"] = apiBaseUrl
