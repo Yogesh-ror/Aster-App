@@ -168,56 +168,61 @@ object ChatApi {
             "http://127.0.0.1:8080"
         ).distinct()
 
-        var lastErrorMsg = "No candidates tried."
+        var lastErrorMsg = "Unable to connect."
 
         for (targetUrl in candidateUrls) {
-            try {
-                val connection = (URL("$targetUrl$path").openConnection() as HttpURLConnection).apply {
-                    requestMethod = method
-                    connectTimeout = 4_000
-                    readTimeout = 40_000
-                    setRequestProperty("Accept", "application/json")
-                    if (token != null) setRequestProperty("Authorization", "Bearer $token")
+            for (attempt in 1..2) {
+                try {
+                    val connection = (URL("$targetUrl$path").openConnection() as HttpURLConnection).apply {
+                        requestMethod = method
+                        connectTimeout = 45_000
+                        readTimeout = 60_000
+                        setRequestProperty("Accept", "application/json")
+                        if (token != null) setRequestProperty("Authorization", "Bearer $token")
+                        if (body != null) {
+                            doOutput = true
+                            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                        }
+                    }
+
                     if (body != null) {
-                        doOutput = true
-                        setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                        connection.outputStream.use { stream ->
+                            stream.write(body.toString().toByteArray(Charsets.UTF_8))
+                        }
+                    }
+
+                    val status = connection.responseCode
+                    val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+                    val responseText = stream?.use {
+                        BufferedReader(InputStreamReader(it, Charsets.UTF_8)).readText()
+                    }.orEmpty()
+
+                    val response = runCatching { JSONTokener(responseText).nextValue() }.getOrElse { JSONObject() }
+                    if (status !in 200..299) {
+                        val detail = (response as? JSONObject)?.optString("error").orEmpty()
+                        if (detail.contains("Gemini API key is missing", ignoreCase = true) || detail.contains("Gemini Error", ignoreCase = true)) {
+                            throw ApiException("There is an error in Deep thinking mode. Please try your query in Fastest response mode.")
+                        } else if (detail.contains("OpenAI API key is missing", ignoreCase = true) || detail.contains("OpenAI Error", ignoreCase = true)) {
+                            throw ApiException("There is an error in Fastest response mode. Please try your query in Deep thinking mode.")
+                        }
+                        throw ApiException(detail.ifBlank { "Server request failed ($status)." })
+                    }
+
+                    baseUrl = targetUrl
+                    connection.disconnect()
+                    return response
+                } catch (error: ApiException) {
+                    throw error
+                } catch (e: Exception) {
+                    lastErrorMsg = e.message ?: "Connection timeout"
+                    if (attempt < 2 && targetUrl.startsWith("https://")) {
+                        try { Thread.sleep(2000) } catch (_: Exception) {}
                     }
                 }
-
-                if (body != null) {
-                    connection.outputStream.use { stream ->
-                        stream.write(body.toString().toByteArray(Charsets.UTF_8))
-                    }
-                }
-
-                val status = connection.responseCode
-                val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-                val responseText = stream?.use {
-                    BufferedReader(InputStreamReader(it, Charsets.UTF_8)).readText()
-                }.orEmpty()
-
-                val response = runCatching { JSONTokener(responseText).nextValue() }.getOrElse { JSONObject() }
-                if (status !in 200..299) {
-                    val detail = (response as? JSONObject)?.optString("error").orEmpty()
-                    if (detail.contains("Gemini API key is missing", ignoreCase = true) || detail.contains("Gemini Error", ignoreCase = true)) {
-                        throw ApiException("There is an error in Deep thinking mode. Please try your query in Fastest response mode.")
-                    } else if (detail.contains("OpenAI API key is missing", ignoreCase = true) || detail.contains("OpenAI Error", ignoreCase = true)) {
-                        throw ApiException("There is an error in Fastest response mode. Please try your query in Deep thinking mode.")
-                    }
-                    throw ApiException(detail.ifBlank { "Server request failed ($status)." })
-                }
-
-                baseUrl = targetUrl
-                connection.disconnect()
-                return response
-            } catch (error: ApiException) {
-                throw error
-            } catch (e: Exception) {
-                lastErrorMsg = "$targetUrl -> ${e.message}"
             }
         }
 
-        throw ApiException("Can't reach Aster AI server. Reason: $lastErrorMsg")
+        throw ApiException("Server is starting up or unreachable. Please wait a moment and try again. ($lastErrorMsg)")
     }
 
     private fun JSONObject.toChat() = ChatItem(

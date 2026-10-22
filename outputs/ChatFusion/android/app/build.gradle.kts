@@ -12,8 +12,8 @@ android {
         applicationId = "com.yogesh.multiaichat"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.1"
+        versionCode = 4
+        versionName = "1.2"
 
         val apiBaseUrl = providers.gradleProperty("API_BASE_URL")
             .orElse("https://aster-app-jsng.onrender.com")
