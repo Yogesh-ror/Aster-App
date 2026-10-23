@@ -171,7 +171,8 @@ object ChatApi {
         var lastErrorMsg = "Unable to connect."
 
         for (targetUrl in candidateUrls) {
-            for (attempt in 1..2) {
+            val maxAttempts = if (targetUrl.contains("onrender.com")) 8 else 2
+            for (attempt in 1..maxAttempts) {
                 try {
                     val connection = (URL("$targetUrl$path").openConnection() as HttpURLConnection).apply {
                         requestMethod = method
@@ -198,6 +199,12 @@ object ChatApi {
                     }.orEmpty()
 
                     val response = runCatching { JSONTokener(responseText).nextValue() }.getOrElse { JSONObject() }
+                    
+                    if (status == 502 || status == 503) {
+                        // Render cold start -> force retry
+                        throw Exception("Render sleeping ($status)")
+                    }
+
                     if (status !in 200..299) {
                         val detail = (response as? JSONObject)?.optString("error").orEmpty()
                         if (detail.contains("Gemini API key is missing", ignoreCase = true) || detail.contains("Gemini Error", ignoreCase = true)) {
@@ -215,8 +222,8 @@ object ChatApi {
                     throw error
                 } catch (e: Exception) {
                     lastErrorMsg = e.message ?: "Connection timeout"
-                    if (attempt < 2 && targetUrl.startsWith("https://")) {
-                        try { Thread.sleep(2000) } catch (_: Exception) {}
+                    if (attempt < maxAttempts) {
+                        try { Thread.sleep(5000) } catch (_: Exception) {}
                     }
                 }
             }
