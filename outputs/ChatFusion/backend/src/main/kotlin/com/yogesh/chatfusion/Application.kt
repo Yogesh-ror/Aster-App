@@ -95,36 +95,43 @@ fun Application.chatFusionModule(jwtSecret: String, providerClient: ProviderClie
                 return@post
             }
 
-            val existing = Database.users.find(Document("email", request.email.lowercase())).firstOrNull()
-            if (existing != null) {
-                call.respond(HttpStatusCode.Conflict, ErrorResponse("Email is already registered."))
-                return@post
-            }
+            try {
+                val existing = Database.users.find(Document("email", request.email.lowercase())).firstOrNull()
+                if (existing != null) {
+                    call.respond(HttpStatusCode.Conflict, ErrorResponse("Email is already registered."))
+                    return@post
+                }
 
-            val hash = BCrypt.hashpw(request.password, BCrypt.gensalt())
-            val userDoc = Document()
-                .append("email", request.email.lowercase())
-                .append("passwordHash", hash)
-                .append("name", request.name ?: "")
-                .append("mobileNumber", request.mobileNumber ?: "")
-                .append("photoUrl", request.photoUrl ?: "")
-                .append("createdAt", System.currentTimeMillis())
+                val hash = BCrypt.hashpw(request.password, BCrypt.gensalt())
+                val userDoc = Document()
+                    .append("email", request.email.lowercase())
+                    .append("passwordHash", hash)
+                    .append("name", request.name ?: "")
+                    .append("mobileNumber", request.mobileNumber ?: "")
+                    .append("photoUrl", request.photoUrl ?: "")
+                    .append("createdAt", System.currentTimeMillis())
 
-            Database.users.insertOne(userDoc)
-            val userId = userDoc.getObjectId("_id").toHexString()
-            val token = createToken(userId, request.email.lowercase())
+                Database.users.insertOne(userDoc)
+                val userId = userDoc.getObjectId("_id").toHexString()
+                val token = createToken(userId, request.email.lowercase())
 
-            call.respond(
-                HttpStatusCode.Created,
-                AuthResponse(
-                    token = token,
-                    userId = userId,
-                    email = request.email.lowercase(),
-                    name = request.name ?: "",
-                    mobileNumber = request.mobileNumber ?: "",
-                    photoUrl = request.photoUrl ?: ""
+                call.respond(
+                    HttpStatusCode.Created,
+                    AuthResponse(
+                        token = token,
+                        userId = userId,
+                        email = request.email.lowercase(),
+                        name = request.name ?: "",
+                        mobileNumber = request.mobileNumber ?: "",
+                        photoUrl = request.photoUrl ?: ""
+                    )
                 )
-            )
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.ServiceUnavailable,
+                    ErrorResponse("Database connection failed (${e.message}). Please whitelist 0.0.0.0/0 in MongoDB Atlas Network Access.")
+                )
+            }
         }
 
         post("/v1/auth/login") {
@@ -135,32 +142,39 @@ fun Application.chatFusionModule(jwtSecret: String, providerClient: ProviderClie
                 return@post
             }
 
-            val userDoc = Database.users.find(Document("email", request.email.lowercase())).firstOrNull()
-            if (userDoc == null) {
-                call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials."))
-                return@post
-            }
+            try {
+                val userDoc = Database.users.find(Document("email", request.email.lowercase())).firstOrNull()
+                if (userDoc == null) {
+                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials."))
+                    return@post
+                }
 
-            val hash = userDoc.getString("passwordHash") ?: ""
-            if (!BCrypt.checkpw(request.password, hash)) {
-                call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials."))
-                return@post
-            }
+                val hash = userDoc.getString("passwordHash") ?: ""
+                if (!BCrypt.checkpw(request.password, hash)) {
+                    call.respond(HttpStatusCode.Unauthorized, ErrorResponse("Invalid credentials."))
+                    return@post
+                }
 
-            val userId = userDoc.getObjectId("_id").toHexString()
-            val token = createToken(userId, request.email.lowercase())
+                val userId = userDoc.getObjectId("_id").toHexString()
+                val token = createToken(userId, request.email.lowercase())
 
-            call.respond(
-                HttpStatusCode.OK,
-                AuthResponse(
-                    token = token,
-                    userId = userId,
-                    email = request.email.lowercase(),
-                    name = userDoc.getString("name") ?: "",
-                    mobileNumber = userDoc.getString("mobileNumber") ?: "",
-                    photoUrl = userDoc.getString("photoUrl") ?: ""
+                call.respond(
+                    HttpStatusCode.OK,
+                    AuthResponse(
+                        token = token,
+                        userId = userId,
+                        email = request.email.lowercase(),
+                        name = userDoc.getString("name") ?: "",
+                        mobileNumber = userDoc.getString("mobileNumber") ?: "",
+                        photoUrl = userDoc.getString("photoUrl") ?: ""
+                    )
                 )
-            )
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.ServiceUnavailable,
+                    ErrorResponse("Database connection failed (${e.message}). Please whitelist 0.0.0.0/0 in MongoDB Atlas Network Access.")
+                )
+            }
         }
 
         get("/v1/profile") {
