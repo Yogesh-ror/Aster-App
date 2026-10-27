@@ -26,6 +26,7 @@ class ProviderClient(
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private suspend fun generateFastest(history: List<ConversationTurn>, prompt: String): Pair<String, String> = coroutineScope {
         val openAiDeferred = async(Dispatchers.IO) {
             runCatching { "openai" to generateOpenAi(history, prompt) }
@@ -35,7 +36,7 @@ class ProviderClient(
         }
 
         // Parallel race: whichever responds first successfully is selected
-        val firstFinished = select<Result<Pair<String, String>>> {
+        val firstFinished = select {
             openAiDeferred.onAwait { it }
             geminiDeferred.onAwait { it }
         }
