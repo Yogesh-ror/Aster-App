@@ -118,7 +118,8 @@ class ProviderClient(
         contents.put(JSONObject().put("role", "user").put("parts", userParts))
 
         val body = JSONObject().put("contents", contents)
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/$geminiModel:generateContent?key=$geminiKey"
+        val modelName = if (geminiModel.isBlank() || geminiModel.contains("3.8")) "gemini-1.5-flash" else geminiModel
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/$modelName:generateContent?key=$geminiKey"
 
         @Suppress("DEPRECATION")
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
