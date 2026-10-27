@@ -208,12 +208,14 @@ object ChatApi {
 
                     if (status !in 200..299) {
                         val detail = (response as? JSONObject)?.optString("error").orEmpty()
-                        if (detail.contains("Gemini API key is missing", ignoreCase = true) || detail.contains("Gemini Error", ignoreCase = true)) {
-                            throw ApiException("There is an error in Deep thinking mode. Please try your query in Fastest response mode.")
-                        } else if (detail.contains("OpenAI API key is missing", ignoreCase = true) || detail.contains("OpenAI Error", ignoreCase = true)) {
-                            throw ApiException("There is an error in Fastest response mode. Please try your query in Deep thinking mode.")
+                        val cleanDetail = when {
+                            detail.contains("temporarily unavailable", ignoreCase = true) ||
+                            detail.contains("quota", ignoreCase = true) ||
+                            detail.contains("429", ignoreCase = true) ->
+                                "Aster AI service is currently busy or undergoing maintenance. Please try again in a moment."
+                            else -> detail.ifBlank { "Server request failed ($status)." }
                         }
-                        throw ApiException(detail.ifBlank { "Server request failed ($status)." })
+                        throw ApiException(cleanDetail)
                     }
 
                     baseUrl = targetUrl

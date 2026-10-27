@@ -6,7 +6,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.selects.select
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -20,8 +19,26 @@ class ProviderClient(
     suspend fun generateResponse(provider: String, history: List<ConversationTurn>, prompt: String): Pair<String, String> {
         val selected = provider.lowercase()
         return when (selected) {
-            "openai" -> "openai" to generateOpenAi(history, prompt)
-            "gemini" -> "gemini" to generateGemini(history, prompt)
+            "openai" -> {
+                runCatching { "openai" to generateOpenAi(history, prompt) }
+                    .getOrElse { openAiError ->
+                        // Fallback to Gemini if OpenAI fails
+                        runCatching { "gemini" to generateGemini(history, prompt) }
+                            .getOrElse { geminiError ->
+                                throw RuntimeException("Aster AI service is temporarily unavailable. OpenAI: ${openAiError.message} | Gemini: ${geminiError.message}")
+                            }
+                    }
+            }
+            "gemini" -> {
+                runCatching { "gemini" to generateGemini(history, prompt) }
+                    .getOrElse { geminiError ->
+                        // Fallback to OpenAI if Gemini fails
+                        runCatching { "openai" to generateOpenAi(history, prompt) }
+                            .getOrElse { openAiError ->
+                                throw RuntimeException("Aster AI service is temporarily unavailable. Gemini: ${geminiError.message} | OpenAI: ${openAiError.message}")
+                            }
+                    }
+            }
             else -> generateFastest(history, prompt)
         }
     }
@@ -35,7 +52,6 @@ class ProviderClient(
             runCatching { "gemini" to generateGemini(history, prompt) }
         }
 
-        // Parallel race: whichever responds first successfully is selected
         val firstFinished = select {
             openAiDeferred.onAwait { it }
             geminiDeferred.onAwait { it }
@@ -44,18 +60,17 @@ class ProviderClient(
         if (firstFinished.isSuccess) {
             firstFinished.getOrThrow()
         } else {
-            // If the first one threw an error, wait for the other provider
             val secondResult = if (openAiDeferred.isCompleted) geminiDeferred.await() else openAiDeferred.await()
             secondResult.getOrElse {
                 val openAiErr = openAiDeferred.getCompletionExceptionOrNull()?.message
                 val geminiErr = geminiDeferred.getCompletionExceptionOrNull()?.message
-                throw RuntimeException("Both AI providers failed. OpenAI: $openAiErr | Gemini: $geminiErr")
+                throw RuntimeException("Aster AI service is temporarily unavailable. OpenAI: $openAiErr | Gemini: $geminiErr")
             }
         }
     }
 
     fun generateOpenAi(history: List<ConversationTurn>, prompt: String): String {
-        if (openAiKey.isBlank()) throw IllegalArgumentException("OpenAI API key is missing on the server.")
+        if (openAiKey.isBlank()) throw IllegalArgumentException("OpenAI API key is missing.")
         val messages = JSONArray()
         history.forEach { turn ->
             messages.put(JSONObject().put("role", turn.role).put("content", turn.content))
@@ -66,6 +81,7 @@ class ProviderClient(
             .put("model", openAiModel)
             .put("messages", messages)
 
+        @Suppress("DEPRECATION")
         val connection = (URL("https://api.openai.com/v1/chat/completions").openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 30_000
@@ -91,7 +107,7 @@ class ProviderClient(
     }
 
     fun generateGemini(history: List<ConversationTurn>, prompt: String): String {
-        if (geminiKey.isBlank()) throw IllegalArgumentException("Gemini API key is missing on the server.")
+        if (geminiKey.isBlank()) throw IllegalArgumentException("Gemini API key is missing.")
         val contents = JSONArray()
         history.forEach { turn ->
             val role = if (turn.role == "assistant") "model" else "user"
@@ -104,6 +120,7 @@ class ProviderClient(
         val body = JSONObject().put("contents", contents)
         val url = "https://generativelanguage.googleapis.com/v1beta/models/$geminiModel:generateContent?key=$geminiKey"
 
+        @Suppress("DEPRECATION")
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 30_000
