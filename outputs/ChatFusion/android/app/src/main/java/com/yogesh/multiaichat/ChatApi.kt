@@ -52,6 +52,9 @@ object ChatApi {
     private var baseUrl: String = "https://aster-app-jsng.onrender.com"
 
     fun configure(context: Context) {
+        System.setProperty("java.net.preferIPv4Addresses", "true")
+        System.setProperty("java.net.preferIPv4Stack", "true")
+
         @Suppress("DEPRECATION")
         val appInfo = context.packageManager.getApplicationInfo(
             context.packageName,
@@ -163,9 +166,7 @@ object ChatApi {
     ): Any {
         val candidateUrls = listOf(
             baseUrl,
-            "https://aster-app-jsng.onrender.com",
-            "http://192.168.31.101:8080",
-            "http://127.0.0.1:8080"
+            "https://aster-app-jsng.onrender.com"
         ).distinct()
 
         var lastErrorMsg = "Unable to connect."
