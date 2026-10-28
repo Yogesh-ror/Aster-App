@@ -52,9 +52,6 @@ object ChatApi {
     private var baseUrl: String = "https://aster-app-jsng.onrender.com"
 
     fun configure(context: Context) {
-        System.setProperty("java.net.preferIPv4Addresses", "true")
-        System.setProperty("java.net.preferIPv4Stack", "true")
-
         @Suppress("DEPRECATION")
         val appInfo = context.packageManager.getApplicationInfo(
             context.packageName,
@@ -224,15 +221,15 @@ object ChatApi {
                 } catch (error: ApiException) {
                     throw error
                 } catch (e: Exception) {
-                    lastErrorMsg = e.message ?: "Connection timeout"
+                    lastErrorMsg = e.toString()
                     if (attempt < maxAttempts) {
-                        try { Thread.sleep(5000) } catch (_: Exception) {}
+                        try { Thread.sleep(4000) } catch (_: Exception) {}
                     }
                 }
             }
         }
 
-        throw ApiException("Server is starting up or unreachable. Please wait a moment and try again. ($lastErrorMsg)")
+        throw ApiException("Server unreachable. Please check your internet connection or try again later. (Detail: $lastErrorMsg)")
     }
 
     private fun JSONObject.toChat() = ChatItem(
