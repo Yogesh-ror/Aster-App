@@ -49,7 +49,7 @@ data class SendResult(val userMessage: ChatMessage, val assistantMessage: ChatMe
 class ApiException(message: String) : Exception(message)
 
 object ChatApi {
-    private var baseUrl: String = "https://aster-app-jsng.onrender.com"
+    private var baseUrl: String = "https://scratch-capitol-huff.ngrok-free.dev"
 
     fun configure(context: Context) {
         @Suppress("DEPRECATION")
@@ -61,7 +61,7 @@ object ChatApi {
             ?.getString("com.yogesh.multiaichat.API_BASE_URL")
             ?.trimEnd('/')
             ?.takeIf(String::isNotBlank)
-            ?: "https://aster-app-jsng.onrender.com"
+            ?: "https://scratch-capitol-huff.ngrok-free.dev"
     }
 
     fun register(
@@ -163,13 +163,14 @@ object ChatApi {
     ): Any {
         val candidateUrls = listOf(
             baseUrl,
+            "https://scratch-capitol-huff.ngrok-free.dev",
             "https://aster-app-jsng.onrender.com"
         ).distinct()
 
         var lastErrorMsg = "Unable to connect."
 
         for (targetUrl in candidateUrls) {
-            val maxAttempts = if (targetUrl.contains("onrender.com")) 8 else 2
+            val maxAttempts = if (targetUrl.contains("onrender.com") || targetUrl.contains("ngrok")) 8 else 2
             for (attempt in 1..maxAttempts) {
                 try {
                     val connection = (URL("$targetUrl$path").openConnection() as HttpURLConnection).apply {
@@ -177,6 +178,7 @@ object ChatApi {
                         connectTimeout = 45_000
                         readTimeout = 60_000
                         setRequestProperty("Accept", "application/json")
+                        setRequestProperty("ngrok-skip-browser-warning", "true")
                         if (token != null) setRequestProperty("Authorization", "Bearer $token")
                         if (body != null) {
                             doOutput = true

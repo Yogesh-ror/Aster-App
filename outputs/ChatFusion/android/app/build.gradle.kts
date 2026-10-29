@@ -16,7 +16,7 @@ android {
         versionName = "1.3"
 
         val apiBaseUrl = providers.gradleProperty("API_BASE_URL")
-            .orElse("https://aster-app-jsng.onrender.com")
+            .orElse("https://scratch-capitol-huff.ngrok-free.dev")
             .get()
             .trimEnd('/')
         manifestPlaceholders["apiBaseUrl"] = apiBaseUrl
