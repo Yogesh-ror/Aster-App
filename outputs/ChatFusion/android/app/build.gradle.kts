@@ -12,11 +12,11 @@ android {
         applicationId = "com.yogesh.multiaichat"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.3"
+        versionCode = 6
+        versionName = "1.4"
 
         val apiBaseUrl = providers.gradleProperty("API_BASE_URL")
-            .orElse("https://scratch-capitol-huff.ngrok-free.dev")
+            .orElse("https://aster-app-jsng.onrender.com")
             .get()
             .trimEnd('/')
         manifestPlaceholders["apiBaseUrl"] = apiBaseUrl

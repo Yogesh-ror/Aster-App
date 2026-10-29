@@ -49,7 +49,7 @@ data class SendResult(val userMessage: ChatMessage, val assistantMessage: ChatMe
 class ApiException(message: String) : Exception(message)
 
 object ChatApi {
-    private var baseUrl: String = "https://scratch-capitol-huff.ngrok-free.dev"
+    private var baseUrl: String = "https://aster-app-jsng.onrender.com"
 
     fun configure(context: Context) {
         @Suppress("DEPRECATION")
@@ -61,7 +61,7 @@ object ChatApi {
             ?.getString("com.yogesh.multiaichat.API_BASE_URL")
             ?.trimEnd('/')
             ?.takeIf(String::isNotBlank)
-            ?: "https://scratch-capitol-huff.ngrok-free.dev"
+            ?: "https://aster-app-jsng.onrender.com"
     }
 
     fun register(
@@ -163,7 +163,6 @@ object ChatApi {
     ): Any {
         val candidateUrls = listOf(
             baseUrl,
-            "https://scratch-capitol-huff.ngrok-free.dev",
             "https://aster-app-jsng.onrender.com"
         ).distinct()
 
