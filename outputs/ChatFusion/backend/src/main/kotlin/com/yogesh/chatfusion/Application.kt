@@ -12,6 +12,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.receive
+import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -22,6 +23,18 @@ import org.bson.Document
 import org.bson.types.ObjectId
 import org.mindrot.jbcrypt.BCrypt
 import java.util.Date
+
+private val lenientJson = Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+    coerceInputValues = true
+    prettyPrint = true
+}
+
+private suspend inline fun <reified T> ApplicationCall.receiveLenient(): T {
+    val text = receiveText()
+    return lenientJson.decodeFromString(text)
+}
 
 fun main() {
     val mongoUri = System.getenv("MONGODB_URI") ?: "mongodb://localhost:27017"
@@ -47,10 +60,7 @@ fun main() {
 
 fun Application.chatFusionModule(jwtSecret: String, providerClient: ProviderClient) {
     install(ContentNegotiation) {
-        json(Json {
-            ignoreUnknownKeys = true
-            prettyPrint = true
-        })
+        json(lenientJson)
     }
 
     val algorithm = Algorithm.HMAC256(jwtSecret)
@@ -85,9 +95,9 @@ fun Application.chatFusionModule(jwtSecret: String, providerClient: ProviderClie
     routing {
         post("/v1/auth/register") {
             val request = try {
-                call.receive<AuthRequest>()
+                call.receiveLenient<AuthRequest>()
             } catch (e: Exception) {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid payload."))
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid payload: ${e.message}"))
                 return@post
             }
             if (request.email.isBlank() || request.password.isBlank()) {
@@ -136,9 +146,9 @@ fun Application.chatFusionModule(jwtSecret: String, providerClient: ProviderClie
 
         post("/v1/auth/login") {
             val request = try {
-                call.receive<AuthRequest>()
+                call.receiveLenient<AuthRequest>()
             } catch (e: Exception) {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid payload."))
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid payload: ${e.message}"))
                 return@post
             }
 
@@ -208,9 +218,9 @@ fun Application.chatFusionModule(jwtSecret: String, providerClient: ProviderClie
             }
 
             val request = try {
-                call.receive<UpdateProfileRequest>()
+                call.receiveLenient<UpdateProfileRequest>()
             } catch (e: Exception) {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid payload."))
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid payload: ${e.message}"))
                 return@put
             }
 
@@ -268,7 +278,7 @@ fun Application.chatFusionModule(jwtSecret: String, providerClient: ProviderClie
                 return@post
             }
 
-            val req = runCatching { call.receive<ChatCreateRequest>() }.getOrNull()
+            val req = runCatching { call.receiveLenient<ChatCreateRequest>() }.getOrNull()
             val provider = req?.provider ?: "auto"
 
             val doc = Document()
@@ -335,9 +345,9 @@ fun Application.chatFusionModule(jwtSecret: String, providerClient: ProviderClie
             }
 
             val req = try {
-                call.receive<SendMessageRequest>()
+                call.receiveLenient<SendMessageRequest>()
             } catch (e: Exception) {
-                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid payload."))
+                call.respond(HttpStatusCode.BadRequest, ErrorResponse("Invalid payload: ${e.message}"))
                 return@post
             }
 
@@ -366,9 +376,9 @@ fun Application.chatFusionModule(jwtSecret: String, providerClient: ProviderClie
                 Database.messages.deleteOne(Document("_id", userMsgDoc.getObjectId("_id")))
                 val errMsg = e.message ?: "Unknown error"
                 val friendlyError = when {
-                    errMsg.contains("OpenAI", ignoreCase = true) || errMsg.contains("quota", ignoreCase = true) || errMsg.contains("429") -> 
+                    errMsg.contains("OpenAI", ignoreCase = true) || errMsg.contains("quota", ignoreCase = true) || errMsg.contains("429") ->
                         "There is an error in Fastest response mode. Please try your query in Deep thinking mode."
-                    errMsg.contains("Gemini", ignoreCase = true) -> 
+                    errMsg.contains("Gemini", ignoreCase = true) ->
                         "There is an error in Deep thinking mode. Please try your query in Fastest response mode."
                     else -> "Aster server had a problem: $errMsg"
                 }
